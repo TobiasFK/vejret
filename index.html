@@ -1,0 +1,824 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Vejret</title>
+<meta name="description" content="Personal weather: Celsius first, rain outlook, radar and 14 days ahead.">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Vejret">
+<meta name="theme-color" content="#EDF1F4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0A141D" media="(prefers-color-scheme: dark)">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://api.open-meteo.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+/* Layout: one phone-width column. A big Celsius reading up top, then stacked instrument cards: rain, hours, radar, 14 days. */
+:root{
+  --bg:#EDF1F4; --surface:#F9FBFC; --surface-2:#E2E8ED; --ink:#0F2233; --muted:#5A6B79; --line:#D3DCE3;
+  --accent:#E0532A; --rain:#2A6DB5; --sun:#E39A2F; --moon:#AEB9C3; --cloud:#A3B1BC; --snow:#7FA4C9; --dry:#3E8A63;
+  --f-display:"Familjen Grotesk", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --f-data:"IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --radius:14px;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0A141D; --surface:#111F2B; --surface-2:#1A2D3C; --ink:#E5EDF3; --muted:#8B9DAB; --line:#213545;
+    --accent:#FF7A4A; --rain:#62A9F3; --sun:#F2B55A; --moon:#C9D3DC; --cloud:#6E8394; --snow:#A9C6E4; --dry:#6CC294;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0A141D; --surface:#111F2B; --surface-2:#1A2D3C; --ink:#E5EDF3; --muted:#8B9DAB; --line:#213545;
+  --accent:#FF7A4A; --rain:#62A9F3; --sun:#F2B55A; --moon:#C9D3DC; --cloud:#6E8394; --snow:#A9C6E4; --dry:#6CC294;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 16px/1.45 var(--f-display);-webkit-font-smoothing:antialiased}
+button{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--rain);outline-offset:2px}
+.app{max-width:34rem;margin:0 auto;padding-left:max(16px, env(safe-area-inset-left, 0px));padding-right:max(16px, env(safe-area-inset-right, 0px));padding-bottom:calc(28px + env(safe-area-inset-bottom, 0px))}
+.num{font-variant-numeric:tabular-nums}
+.f{font-family:var(--f-data);color:var(--muted);font-size:.72em;font-weight:400;letter-spacing:0}
+
+/* Header */
+.top{position:sticky;top:0;z-index:1100;background:var(--bg);padding-top:calc(env(safe-area-inset-top, 0px) + 10px);padding-bottom:10px}
+.brand{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px}
+.wordmark{font-weight:700;font-size:19px;letter-spacing:-.01em}
+.wordmark i{font-style:normal;color:var(--accent)}
+.brand-right{display:flex;align-items:center;gap:6px}
+.today-date{font:500 12px var(--f-data);text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+.icon-btn{width:38px;height:38px;border-radius:50%;border:1px solid var(--line);background:var(--surface);display:inline-grid;place-items:center;cursor:pointer;padding:0}
+.icon-btn svg{width:18px;height:18px;stroke:var(--ink);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.icon-btn.spin svg{animation:spin .9s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.places{display:flex;gap:8px;overflow-x:auto;margin:0 calc(-1 * max(16px, env(safe-area-inset-left, 0px)));padding:2px max(16px, env(safe-area-inset-left, 0px));scrollbar-width:none}
+.places::-webkit-scrollbar{display:none}
+.chip{flex:0 0 auto;display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:999px;border:1px solid var(--line);background:var(--surface);font-weight:500;font-size:15px;white-space:nowrap;cursor:pointer}
+.chip svg{width:14px;height:14px}
+.chip .pin{fill:var(--accent)}
+.chip[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:var(--bg)}
+.chip-add{border-style:dashed;color:var(--muted)}
+.chip-add svg{stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round}
+
+/* Now */
+.now{padding:10px 0 6px}
+.place-name{font-weight:600;font-size:28px;line-height:1.1;margin:0;letter-spacing:-.015em;text-wrap:balance}
+.place-meta{margin:4px 0 0;color:var(--muted);font-size:14px}
+.now-main{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:6px}
+.t-c{display:block;font-weight:700;font-size:clamp(84px,27vw,124px);line-height:.92;letter-spacing:-.05em;font-variant-numeric:tabular-nums}
+.t-c sup{font-size:.28em;letter-spacing:0;vertical-align:top;position:relative;top:.35em;margin-left:.06em;font-weight:600}
+.t-f{display:block;font:500 18px var(--f-data);color:var(--muted);margin-top:4px}
+.now-icon svg{width:clamp(76px,22vw,104px);height:auto;display:block}
+.cond{font-size:19px;margin:10px 0 0;text-wrap:balance}
+.cond .f{font-size:14px}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:12px 16px;margin:16px 0 0;padding:14px 0 0;border-top:1px solid var(--line)}
+.stats div{min-width:0}
+.stats dt{font:500 11px var(--f-data);text-transform:uppercase;letter-spacing:.09em;color:var(--muted)}
+.stats dd{margin:2px 0 0;font-size:16px;font-weight:500}
+.stats dd .f{font-size:12px;display:block}
+.state-msg{padding:28px 0 18px}
+.state-msg p{margin:8px 0 14px;color:var(--muted);max-width:30em}
+.btn{display:inline-flex;align-items:center;gap:8px;padding:10px 16px;border-radius:999px;border:0;background:var(--ink);color:var(--bg);font-weight:600;cursor:pointer}
+.btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}
+.skeleton{color:var(--muted)}
+
+/* Cards */
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-top:12px}
+.card h2,.lbl{font:500 11px var(--f-data);text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin:0 0 10px}
+.card-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}
+.card-head h2{margin:0}
+
+/* Rain */
+.rain-lead{font-weight:600;font-size:22px;line-height:1.2;margin:0;display:flex;align-items:center;gap:10px;text-wrap:balance}
+.rain-lead::before{content:"";flex:0 0 10px;height:10px;border-radius:50%;background:var(--dry)}
+.rain-lead.wet{color:var(--rain)}
+.rain-lead.wet::before,.rain-lead.soon::before{background:var(--rain)}
+.nowcast{display:grid;grid-template-columns:repeat(12,1fr);gap:4px;height:64px;align-items:end;margin-top:14px}
+.nowcast i{display:block;background:var(--rain);border-radius:3px 3px 1px 1px;min-height:3px}
+.nowcast i.zero{background:var(--line)}
+.nowcast-axis{display:grid;grid-template-columns:repeat(12,1fr);gap:4px;margin-top:6px;font:400 11px var(--f-data);color:var(--muted)}
+.nowcast-axis span{grid-column:span 4;white-space:nowrap}
+.nowcast-scale{font:400 11px var(--f-data);color:var(--muted);margin-top:2px}
+.next-rain{margin:12px 0 0;padding-top:12px;border-top:1px solid var(--line);font-size:15px;color:var(--muted)}
+.next-rain strong{color:var(--ink);font-weight:600}
+
+/* Hours */
+.hours{display:flex;gap:2px;overflow-x:auto;margin:0 -16px;padding:0 16px 4px;scroll-snap-type:x proximity;scrollbar-width:thin}
+.hour{flex:0 0 58px;display:grid;justify-items:center;gap:3px;text-align:center;scroll-snap-align:start;padding:4px 0}
+.hour time{font:500 12px var(--f-data);color:var(--muted)}
+.hour svg{width:30px;height:30px}
+.hour .ht{font-weight:600;font-size:17px;line-height:1}
+.hour .hf{font:400 11px var(--f-data);color:var(--muted)}
+.pop{width:36px;height:4px;border-radius:2px;background:var(--surface-2);overflow:hidden;margin-top:4px}
+.pop i{display:block;height:100%;background:var(--rain)}
+.hour .pp{font:500 11px var(--f-data);color:var(--rain)}
+.hour .pp.low{color:var(--muted)}
+
+/* Radar */
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:999px;padding:2px;background:var(--bg)}
+.seg button{border:0;background:transparent;padding:5px 11px;border-radius:999px;font-size:13px;font-weight:500;color:var(--muted);cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--surface);color:var(--ink);box-shadow:0 0 0 1px var(--line)}
+#map{height:300px;border-radius:10px;overflow:hidden;background:var(--surface-2);max-width:100%}
+.map-msg{padding:24px;color:var(--muted);margin:0}
+.radar-bar{display:flex;align-items:center;gap:12px;margin-top:12px}
+.play{width:38px;height:38px;flex:0 0 38px;border-radius:50%;border:0;background:var(--ink);display:grid;place-items:center;cursor:pointer}
+.play svg{width:14px;height:14px;fill:var(--bg)}
+#frameRange{flex:1;min-width:0;accent-color:var(--rain)}
+#frameTime{font:500 12px var(--f-data);color:var(--muted);white-space:nowrap;min-width:7.5em;text-align:right}
+.radar-note{font:400 11px var(--f-data);color:var(--muted);margin:8px 0 0}
+.leaflet-container{background:var(--surface-2);font:12px var(--f-display)}
+.leaflet-control-attribution{background:color-mix(in srgb, var(--surface) 85%, transparent)!important;color:var(--muted)!important;font-size:9px!important}
+.leaflet-control-attribution a{color:var(--muted)!important}
+.leaflet-bar a{background:var(--surface)!important;color:var(--ink)!important;border-color:var(--line)!important}
+
+/* Days */
+.days{list-style:none;margin:0;padding:0}
+.week-label{font:500 11px var(--f-data);text-transform:uppercase;letter-spacing:.1em;color:var(--muted);padding:14px 0 6px}
+.week-label:first-child{padding-top:0}
+.day{border-top:1px solid var(--line)}
+.day summary{display:grid;grid-template-columns:4.1rem 28px 3.1rem 2.4rem minmax(24px,1fr) 2.4rem;align-items:center;gap:8px;padding:10px 0;list-style:none;cursor:pointer}
+.day summary::-webkit-details-marker{display:none}
+.dname{font-weight:600;font-size:15px;line-height:1.15}
+.dname span{display:block;font:400 11px var(--f-data);color:var(--muted)}
+.day svg{width:28px;height:28px}
+.dpop{font:500 13px var(--f-data);color:var(--rain);line-height:1.15}
+.dpop span{display:block;font-size:10px;color:var(--muted)}
+.dpop.low{color:var(--muted)}
+.dt{text-align:right;font-weight:600;font-size:16px;line-height:1.1}
+.dt.lo{color:var(--muted);font-weight:500}
+.dt span{display:block;font:400 10px var(--f-data);color:var(--muted)}
+.range{position:relative;height:6px;border-radius:3px;background:var(--surface-2)}
+.range i{position:absolute;top:0;bottom:0;border-radius:3px}
+.day-detail{margin:0 0 12px;padding:10px 12px;border-radius:10px;background:var(--bg);font-size:14px;color:var(--muted);display:grid;grid-template-columns:1fr 1fr;gap:6px 14px}
+.day-detail b{display:block;font:500 10px var(--f-data);text-transform:uppercase;letter-spacing:.09em}
+.day-detail span{color:var(--ink)}
+
+/* Install tip + footer */
+.tip{display:flex;gap:12px;align-items:flex-start;justify-content:space-between}
+.tip p{margin:0;font-size:14px;color:var(--muted)}
+.tip strong{color:var(--ink)}
+footer{margin-top:20px;font:400 11px/1.6 var(--f-data);color:var(--muted)}
+footer a{color:inherit}
+
+/* Sheet */
+dialog#sheet{border:0;padding:0;width:min(34rem,100vw);max-width:100vw;margin:auto auto 0;border-radius:18px 18px 0 0;background:var(--surface);color:var(--ink);max-height:86vh}
+dialog#sheet::backdrop{background:rgba(5,15,25,.5)}
+.sheet-inner{padding:16px max(16px, env(safe-area-inset-right, 0px)) calc(20px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px))}
+.sheet-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.sheet-head h2{margin:0;font-size:22px;font-weight:600}
+#q{width:100%;font:500 16px var(--f-display);padding:12px 14px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--ink)}
+.results,.saved{list-style:none;margin:8px 0 18px;padding:0}
+.results li,.saved li{border-bottom:1px solid var(--line)}
+.result{width:100%;text-align:left;background:none;border:0;padding:12px 2px;cursor:pointer;display:flex;justify-content:space-between;gap:12px}
+.result span,.saved .sub{color:var(--muted);font-size:14px}
+.saved li{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 2px}
+.saved .nm{font-weight:500;min-width:0}
+.saved .sub{display:block}
+.saved button{border:1px solid var(--line);background:var(--bg);border-radius:999px;padding:6px 12px;font-size:13px;cursor:pointer}
+.saved button:disabled{opacity:.4;cursor:default}
+.hint{padding:12px 2px;color:var(--muted);font-size:14px}
+
+.toast{position:fixed;left:50%;bottom:calc(16px + env(safe-area-inset-bottom, 0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:999px;font-size:14px;z-index:2000;max-width:calc(100vw - 32px)}
+
+/* Weather icons */
+.wx .i-sun circle{fill:var(--sun)}
+.wx .i-sun path{stroke:var(--sun);stroke-width:1.7;stroke-linecap:round;fill:none}
+.wx .i-moon{fill:var(--moon)}
+.wx .i-cloud{fill:var(--cloud)}
+.wx .i-drop{stroke:var(--rain);stroke-width:1.8;stroke-linecap:round;fill:none}
+.wx .i-flake{fill:var(--snow)}
+.wx .i-bolt{fill:var(--sun)}
+.wx .i-fog{stroke:var(--cloud);stroke-width:1.8;stroke-linecap:round;fill:none}
+
+@media (prefers-reduced-motion: reduce){ *{animation:none!important;transition:none!important} }
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <div class="brand">
+      <span class="wordmark">Vejret<i>.</i></span>
+      <div class="brand-right">
+        <span class="today-date" id="todayDate"></span>
+        <button class="icon-btn" id="refreshBtn" type="button" aria-label="Refresh forecast"><svg viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/></svg></button>
+      </div>
+    </div>
+    <nav class="places" id="places" aria-label="Places"></nav>
+  </header>
+
+  <main>
+    <section class="now" id="now" aria-live="polite"><p class="skeleton">Loading forecast…</p></section>
+
+    <section class="card" id="rainCard" hidden>
+      <h2>Rain · next 3 hours</h2>
+      <p class="rain-lead" id="rainLead"></p>
+      <div class="nowcast" id="nowcast" aria-hidden="true"></div>
+      <div class="nowcast-axis" id="nowcastAxis" aria-hidden="true"></div>
+      <p class="next-rain" id="nextRain"></p>
+    </section>
+
+    <section class="card" id="hoursCard" hidden>
+      <h2>Next 24 hours</h2>
+      <div class="hours" id="hours"></div>
+    </section>
+
+    <section class="card">
+      <div class="card-head">
+        <h2>Radar</h2>
+        <div class="seg" role="group" aria-label="Radar source">
+          <button type="button" id="modeLoop" aria-pressed="true">Last hour</button>
+          <button type="button" id="modeUS" aria-pressed="false">US live</button>
+        </div>
+      </div>
+      <div id="map"></div>
+      <div class="radar-bar" id="radarBar">
+        <button class="play" id="playBtn" type="button" aria-label="Pause radar"><svg viewBox="0 0 14 14" id="playIcon"><rect x="2" y="1" width="3.5" height="12" rx="1"/><rect x="8.5" y="1" width="3.5" height="12" rx="1"/></svg></button>
+        <input type="range" id="frameRange" min="0" max="0" value="0" aria-label="Radar time">
+        <span id="frameTime">—</span>
+      </div>
+      <p class="radar-note" id="radarNote">Pinch to zoom. Dot marks the selected place.</p>
+    </section>
+
+    <section class="card" id="daysCard" hidden>
+      <h2>14 days</h2>
+      <ol class="days" id="days"></ol>
+    </section>
+
+    <section class="card tip" id="installTip" hidden>
+      <p><strong>Put Vejret on your home screen.</strong> In Safari tap Share, then “Add to Home Screen”. On Android, open the browser menu and tap “Install app”.</p>
+      <button class="icon-btn" id="tipClose" type="button" aria-label="Hide tip"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    </section>
+
+    <footer>
+      Forecast <a href="https://open-meteo.com" target="_blank" rel="noopener">Open-Meteo</a> · Radar <a href="https://www.rainviewer.com" target="_blank" rel="noopener">RainViewer</a>, NEXRAD via <a href="https://mesonet.agron.iastate.edu" target="_blank" rel="noopener">IEM</a> · Map © OpenStreetMap, CARTO
+    </footer>
+  </main>
+</div>
+
+<dialog id="sheet" aria-labelledby="sheetTitle">
+  <div class="sheet-inner">
+    <div class="sheet-head">
+      <h2 id="sheetTitle">Places</h2>
+      <button class="icon-btn" id="sheetClose" type="button" aria-label="Close"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    </div>
+    <label class="lbl" for="q">Add a place</label>
+    <input id="q" type="search" placeholder="City or town" autocomplete="off" enterkeyhint="search">
+    <ul class="results" id="results"></ul>
+    <h3 class="lbl">Saved</h3>
+    <ul class="saved" id="saved"></ul>
+  </div>
+</dialog>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+(() => {
+'use strict';
+const $ = s => document.querySelector(s);
+const API = 'https://api.open-meteo.com/v1/forecast';
+const GEO = 'https://geocoding-api.open-meteo.com/v1/search';
+
+/* ---------- storage ---------- */
+const store = {
+  get(k, d){ try{ const v = localStorage.getItem('vejret.' + k); return v == null ? d : JSON.parse(v); }catch(e){ return d; } },
+  set(k, v){ try{ localStorage.setItem('vejret.' + k, JSON.stringify(v)); }catch(e){} }
+};
+const BOSTON = { id:'boston', name:'Boston', region:'Massachusetts, US', lat:42.3601, lon:-71.0589 };
+let places = store.get('places', null);
+if (!Array.isArray(places) || !places.length) places = [BOSTON];
+let selected = store.get('selected', null);
+let reqId = 0;
+let lastLoad = 0;
+let activePlace = null;
+
+/* ---------- helpers ---------- */
+const rnd = n => { const v = Math.round(n); return Object.is(v, -0) ? 0 : v; };
+const toF = c => c * 9 / 5 + 32;
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const toEpoch = (t, off) => Date.parse((t.length === 10 ? t + 'T00:00' : t) + 'Z') - off * 1000;
+const fmtIn = (ep, tz, o) => { try{ return new Intl.DateTimeFormat('en-US', { timeZone: tz, ...o }).format(new Date(ep)); }catch(e){ return new Intl.DateTimeFormat('en-US', o).format(new Date(ep)); } };
+const tShort = (ep, tz) => fmtIn(ep, tz, { hour:'numeric', minute:'2-digit' });
+const hShort = (ep, tz) => fmtIn(ep, tz, { hour:'numeric' });
+const dayOf = s => new Date(s + 'T12:00:00Z');
+const dayFmt = (s, o) => new Intl.DateTimeFormat('en-US', { timeZone:'UTC', ...o }).format(dayOf(s));
+const kmhToMph = k => k * 0.621371;
+
+function toast(msg){
+  const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg;
+  document.body.append(t); setTimeout(() => t.remove(), 3200);
+}
+
+/* ---------- weather codes + icons ---------- */
+const WMO = {0:['Clear','clear'],1:['Mostly clear','partly'],2:['Partly cloudy','partly'],3:['Overcast','cloud'],45:['Fog','fog'],48:['Freezing fog','fog'],
+  51:['Light drizzle','drizzle'],53:['Drizzle','drizzle'],55:['Heavy drizzle','drizzle'],56:['Freezing drizzle','sleet'],57:['Freezing drizzle','sleet'],
+  61:['Light rain','rain'],63:['Rain','rain'],65:['Heavy rain','rain'],66:['Freezing rain','sleet'],67:['Freezing rain','sleet'],
+  71:['Light snow','snow'],73:['Snow','snow'],75:['Heavy snow','snow'],77:['Snow grains','snow'],
+  80:['Light showers','showers'],81:['Showers','showers'],82:['Heavy showers','showers'],85:['Snow showers','snow'],86:['Heavy snow showers','snow'],
+  95:['Thunderstorm','storm'],96:['Thunderstorm with hail','storm'],99:['Thunderstorm with hail','storm']};
+const wmo = c => WMO[c] || ['Unsettled','cloud'];
+
+const SUN = '<g class="i-sun"><circle cx="12" cy="12" r="4.3"/><path d="M12 2.6v2.1M12 19.3v2.1M2.6 12h2.1M19.3 12h2.1M5.4 5.4l1.5 1.5M17.1 17.1l1.5 1.5M5.4 18.6l1.5-1.5M17.1 6.9l1.5-1.5"/></g>';
+const MOON = '<path class="i-moon" d="M15.2 3.4a8.6 8.6 0 1 0 5.4 13.9 7.1 7.1 0 0 1-5.4-13.9z"/>';
+const CLOUD = 'M7 19.5h10.3a4.2 4.2 0 0 0 .6-8.36A5.7 5.7 0 0 0 7.1 10a4.75 4.75 0 0 0-.1 9.5z';
+function icon(kind, day = 1){
+  const sky = day ? SUN : MOON;
+  const small = `<g transform="translate(-1.5 -2.5) scale(.62)">${sky}</g>`;
+  const cloud = (dy = 0, dx = 0) => `<path class="i-cloud" transform="translate(${dx} ${dy})" d="${CLOUD}"/>`;
+  let g;
+  switch(kind){
+    case 'clear': g = sky; break;
+    case 'partly': g = small + cloud(1, 1.5); break;
+    case 'cloud': g = cloud(-1); break;
+    case 'fog': g = cloud(-5) + '<path class="i-fog" d="M5 17.5h14M7.5 21h9"/>'; break;
+    case 'drizzle': g = cloud(-5) + '<path class="i-drop" d="M8.5 18v.6M12 19.5v.6M15.5 18v.6M10 22v.4M14 22v.4"/>'; break;
+    case 'rain': g = cloud(-5) + '<path class="i-drop" d="M8.8 17.2l-1.2 3.6M12.6 17.2l-1.2 3.6M16.4 17.2l-1.2 3.6"/>'; break;
+    case 'showers': g = small + cloud(-3, 1.5) + '<path class="i-drop" d="M10.4 19l-1 2.8M14.4 19l-1 2.8"/>'; break;
+    case 'snow': g = cloud(-5) + '<g class="i-flake"><circle cx="8.5" cy="18.5" r="1.2"/><circle cx="12.5" cy="21" r="1.2"/><circle cx="16.3" cy="18.5" r="1.2"/></g>'; break;
+    case 'sleet': g = cloud(-5) + '<path class="i-drop" d="M9 17.4l-1 3"/><g class="i-flake"><circle cx="12.6" cy="19.8" r="1.2"/></g><path class="i-drop" d="M17 17.4l-1 3"/>'; break;
+    case 'storm': g = cloud(-5) + '<polygon class="i-bolt" points="12.8,14.2 9.2,19.4 11.8,19.4 10.6,23.4 15.4,17.4 12.7,17.4 14.2,14.2"/>'; break;
+    default: g = cloud(-1);
+  }
+  return `<svg class="wx" viewBox="0 0 24 24" aria-hidden="true">${g}</svg>`;
+}
+const PIN = '<svg viewBox="0 0 24 24" aria-hidden="true"><path class="pin" d="M12 2a7 7 0 0 0-7 7c0 5.2 7 13 7 13s7-7.8 7-13a7 7 0 0 0-7-7zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5z"/></svg>';
+const PLUS = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>';
+
+function tempColor(c){
+  const t = Math.max(-15, Math.min(35, c));
+  const stops = [[-15,222,62,62],[0,200,62,58],[10,170,42,50],[18,48,85,55],[26,30,88,55],[35,8,80,52]];
+  for (let i = 1; i < stops.length; i++){
+    if (t <= stops[i][0]){
+      const a = stops[i-1], b = stops[i], k = (t - a[0]) / (b[0] - a[0]);
+      return `hsl(${a[1] + (b[1]-a[1])*k} ${a[2] + (b[2]-a[2])*k}% ${a[3] + (b[3]-a[3])*k}%)`;
+    }
+  }
+  return 'hsl(8 80% 52%)';
+}
+
+/* ---------- data ---------- */
+async function getForecast(lat, lon){
+  const p = new URLSearchParams({
+    latitude: lat.toFixed(4), longitude: lon.toFixed(4), timezone: 'auto', forecast_days: '14',
+    current: 'temperature_2m,apparent_temperature,relative_humidity_2m,is_day,precipitation,weather_code,wind_speed_10m,wind_gusts_10m',
+    minutely_15: 'precipitation', forecast_minutely_15: '13',
+    hourly: 'temperature_2m,precipitation_probability,precipitation,weather_code,is_day', forecast_hours: '48',
+    daily: 'weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max,sunrise,sunset,wind_speed_10m_max,uv_index_max'
+  });
+  const res = await fetch(API + '?' + p);
+  if (!res.ok) throw new Error('Forecast service returned ' + res.status);
+  return res.json();
+}
+function locate(){
+  return new Promise((resolve, reject) => {
+    if (!('geolocation' in navigator)) return reject({ code: 0 });
+    navigator.geolocation.getCurrentPosition(p => resolve(p.coords), reject, { enableHighAccuracy:false, timeout:12000, maximumAge:600000 });
+  });
+}
+async function reverseName(lat, lon){
+  try{
+    const r = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=en`);
+    const j = await r.json();
+    return { name: j.locality || j.city || 'Your location', region: [j.principalSubdivision, j.countryCode].filter(Boolean).join(', ') };
+  }catch(e){ return { name:'Your location', region:'' }; }
+}
+
+/* ---------- places nav ---------- */
+function renderPlaces(){
+  const nav = $('#places'); nav.innerHTML = '';
+  const chip = (id, label, pre = '') => {
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'chip';
+    b.setAttribute('aria-pressed', String(selected === id));
+    b.innerHTML = pre + '<span></span>'; b.querySelector('span').textContent = label;
+    b.addEventListener('click', () => { if (selected !== id) select(id); });
+    return b;
+  };
+  nav.append(chip('here', 'Here', PIN));
+  places.forEach(p => nav.append(chip(p.id, p.name)));
+  const add = document.createElement('button'); add.type = 'button'; add.className = 'chip chip-add';
+  add.innerHTML = PLUS + '<span>Add</span>'; add.setAttribute('aria-label', 'Add or manage places');
+  add.addEventListener('click', openSheet); nav.append(add);
+  const on = nav.querySelector('[aria-pressed="true"]');
+  if (on) nav.scrollTo({ left: Math.max(0, on.offsetLeft - 24), behavior: 'smooth' });
+}
+
+/* ---------- main flow ---------- */
+function setBusy(b){ $('#refreshBtn').classList.toggle('spin', b); }
+
+function showState(title, msg, actions){
+  ['rainCard','hoursCard','daysCard'].forEach(id => $('#' + id).hidden = true);
+  const now = $('#now');
+  now.innerHTML = `<div class="state-msg"><h1 class="place-name">${esc(title)}</h1><p>${esc(msg)}</p><div class="acts"></div></div>`;
+  const acts = now.querySelector('.acts');
+  (actions || []).forEach(([label, fn, ghost]) => {
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'btn' + (ghost ? ' ghost' : '');
+    b.textContent = label; b.addEventListener('click', fn); acts.append(b); acts.append(' ');
+  });
+}
+
+async function select(id){
+  selected = id; store.set('selected', id); renderPlaces();
+  const my = ++reqId; setBusy(true);
+  let place;
+  const cached = store.get('fc.' + id, null);
+  if (id === 'here'){
+    const hp = store.get('herePlace', null);
+    if (cached && hp) render(cached.data, hp, cached.at);
+    else showState('Finding you…', 'Getting your location for the local forecast.');
+    try{
+      const c = await locate();
+      if (my !== reqId) return;
+      place = { id:'here', lat:c.latitude, lon:c.longitude, name: hp?.name || 'Your location', region: hp?.region || '', here:true };
+      reverseName(c.latitude, c.longitude).then(n => {
+        if (my !== reqId) return;
+        place.name = n.name; place.region = n.region; store.set('herePlace', place);
+        const h = $('#now .place-name'); const m = $('#now .place-meta');
+        if (h) h.textContent = n.name;
+        if (m && m.dataset.updated) m.textContent = [n.region, m.dataset.updated].filter(Boolean).join(' · ');
+      });
+    }catch(e){
+      if (my !== reqId) return; setBusy(false);
+      if (!R.map) moveMap(hp || places[0]);
+      if (cached && hp){ toast('Couldn’t update your location. Showing the last one.'); return; }
+      const denied = e && e.code === 1;
+      showState(denied ? 'Location is off' : 'Couldn’t find you',
+        denied ? 'Allow location for this app (on iPhone: Settings → Privacy & Security → Location Services → Safari Websites), then tap Try again. Or pick a saved place.'
+               : 'Your phone didn’t return a location. Try again, or pick a saved place.',
+        [['Try again', () => select('here')], ['Show Boston', () => select(places[0].id), true]]);
+      return;
+    }
+  } else {
+    place = places.find(p => p.id === id) || places[0];
+    if (place.id !== id){ selected = place.id; store.set('selected', place.id); renderPlaces(); }
+    if (cached) render(cached.data, place, cached.at);
+    else showState(place.name, 'Loading forecast…');
+  }
+  activePlace = place;
+  moveMap(place);
+  try{
+    const data = await getForecast(place.lat, place.lon);
+    if (my !== reqId) return;
+    const at = Date.now();
+    store.set('fc.' + place.id, { data, at });
+    if (place.here) store.set('herePlace', place);
+    render(data, place, at); lastLoad = at;
+  }catch(e){
+    if (my !== reqId) return;
+    if (cached) toast('Couldn’t refresh. Showing the last saved forecast.');
+    else showState(place.name, 'The forecast didn’t load. Check your connection and try again.', [['Try again', () => select(id)]]);
+  }finally{ if (my === reqId) setBusy(false); }
+}
+
+/* ---------- render ---------- */
+function render(d, place, at){
+  const tz = d.timezone, off = d.utc_offset_seconds;
+  renderNow(d, place, at, tz);
+  renderRain(d, tz, off);
+  renderHours(d, tz, off);
+  renderDays(d, tz, off);
+  $('#todayDate').textContent = fmtIn(Date.now(), tz, { weekday:'short', day:'numeric', month:'short' });
+}
+
+function renderNow(d, place, at, tz){
+  const c = d.current, dl = d.daily, [label, kind] = wmo(c.weather_code);
+  const updated = 'Updated ' + new Intl.DateTimeFormat('en-US', { hour:'numeric', minute:'2-digit' }).format(new Date(at));
+  const meta = [place.region, updated].filter(Boolean).join(' · ');
+  const hi = dl.temperature_2m_max[0], lo = dl.temperature_2m_min[0];
+  const rainMm = dl.precipitation_sum[0] ?? 0, pop = dl.precipitation_probability_max[0];
+  const off = d.utc_offset_seconds;
+  const sr = tShort(toEpoch(dl.sunrise[0], off), tz), ss = tShort(toEpoch(dl.sunset[0], off), tz);
+  $('#now').innerHTML = `
+    <h1 class="place-name">${esc(place.name)}</h1>
+    <p class="place-meta" data-updated="${esc(updated)}">${esc(meta)}</p>
+    <div class="now-main">
+      <div><span class="t-c">${rnd(c.temperature_2m)}<sup>°C</sup></span><span class="t-f">${rnd(toF(c.temperature_2m))}°F</span></div>
+      <div class="now-icon">${icon(kind, c.is_day)}</div>
+    </div>
+    <p class="cond">${esc(label)}. Feels like ${rnd(c.apparent_temperature)}° <span class="f">${rnd(toF(c.apparent_temperature))}°F</span></p>
+    <dl class="stats">
+      <div><dt>High / low</dt><dd class="num">${rnd(hi)}° / ${rnd(lo)}°<span class="f">${rnd(toF(hi))}° / ${rnd(toF(lo))}°F</span></dd></div>
+      <div><dt>Rain today</dt><dd class="num">${pop ?? '–'}% · ${rainMm.toFixed(1)} mm<span class="f">${(rainMm / 25.4).toFixed(2)} in</span></dd></div>
+      <div><dt>Wind</dt><dd class="num">${rnd(c.wind_speed_10m)} km/h<span class="f">${rnd(kmhToMph(c.wind_speed_10m))} mph · gusts ${rnd(c.wind_gusts_10m)} km/h</span></dd></div>
+      <div><dt>Sunrise / sunset</dt><dd class="num">${sr}<span class="f">sets ${ss} · humidity ${rnd(c.relative_humidity_2m)}%</span></dd></div>
+    </dl>`;
+}
+
+function renderRain(d, tz, off){
+  const now = Date.now(), m = d.minutely_15;
+  let slots = [];
+  if (m && m.time) slots = m.time.map((t, i) => ({ ep: toEpoch(t, off), mm: m.precipitation[i] ?? 0 }))
+    .filter(s => s.ep > now - 15 * 60e3).slice(0, 12);
+  const wet = s => s.mm >= 0.1;
+  const lead = $('#rainLead');
+  let text, tone;
+  const rainingNow = (d.current.precipitation ?? 0) > 0.05 || (slots[0] && wet(slots[0]));
+  if (rainingNow){
+    const stop = slots.findIndex(s => !wet(s));
+    text = stop === -1 ? 'Rain for the next 3 hours' : `Raining now, easing around ${tShort(slots[stop].ep, tz)}`; tone = 'wet';
+  } else {
+    const start = slots.findIndex(wet);
+    if (start >= 0){ text = `Rain from around ${tShort(slots[start].ep, tz)}`; tone = 'soon'; }
+    else { text = 'Dry for the next 3 hours'; tone = 'dry'; }
+  }
+  lead.textContent = text; lead.className = 'rain-lead ' + tone;
+
+  const max = Math.max(1, ...slots.map(s => s.mm));
+  $('#nowcast').innerHTML = slots.map(s => {
+    const h = s.mm < 0.05 ? 0 : Math.max(8, s.mm / max * 100);
+    return `<i class="${h ? '' : 'zero'}" style="height:${h ? h + '%' : '3px'}" title="${s.mm.toFixed(1)} mm"></i>`;
+  }).join('');
+  $('#nowcastAxis').innerHTML = slots.filter((s, i) => i % 4 === 0).map((s, i) => `<span>${i === 0 ? 'Now' : tShort(s.ep, tz)}</span>`).join('');
+
+  // Beyond 3 hours
+  const nr = $('#nextRain');
+  const h = d.hourly, later = now + 3 * 3600e3;
+  let found = null;
+  if (h && h.time){
+    for (let i = 0; i < h.time.length; i++){
+      const ep = toEpoch(h.time[i], off);
+      if (ep < later || ep > now + 24 * 3600e3) continue;
+      if ((h.precipitation_probability[i] ?? 0) >= 50 || (h.precipitation[i] ?? 0) >= 0.3){ found = { ep, p: h.precipitation_probability[i] }; break; }
+    }
+  }
+  if (found){
+    const sameDay = fmtIn(found.ep, tz, { weekday:'short' }) === fmtIn(now, tz, { weekday:'short' });
+    nr.innerHTML = `Later: <strong>rain likely ${sameDay ? '' : 'tomorrow '}around ${esc(hShort(found.ep, tz))}</strong> (${found.p ?? '–'}% chance).`;
+  } else {
+    const dl = d.daily; let k = -1;
+    for (let i = 1; i < dl.time.length; i++){ if ((dl.precipitation_probability_max[i] ?? 0) >= 50 && (dl.precipitation_sum[i] ?? 0) >= 0.5){ k = i; break; } }
+    if (k > 0){
+      const name = k === 1 ? 'tomorrow' : dayFmt(dl.time[k], { weekday:'long', month:'short', day:'numeric' });
+      nr.innerHTML = `Next rainy day: <strong>${esc(name)}</strong> · ${dl.precipitation_probability_max[k]}% · ${dl.precipitation_sum[k].toFixed(1)} mm.`;
+    } else nr.innerHTML = '<strong>No rainy days</strong> in the 14-day forecast.';
+  }
+  $('#rainCard').hidden = false;
+}
+
+function renderHours(d, tz, off){
+  const h = d.hourly, now = Date.now(), out = [];
+  for (let i = 0; i < h.time.length && out.length < 24; i++){
+    const ep = toEpoch(h.time[i], off);
+    if (ep + 3600e3 <= now) continue;
+    const t = h.temperature_2m[i], p = h.precipitation_probability[i] ?? 0;
+    out.push(`<div class="hour">
+      <time>${out.length === 0 ? 'Now' : esc(hShort(ep, tz))}</time>
+      ${icon(wmo(h.weather_code[i])[1], h.is_day[i])}
+      <span class="ht num">${rnd(t)}°</span><span class="hf">${rnd(toF(t))}°F</span>
+      <span class="pop" aria-hidden="true"><i style="width:${p}%"></i></span>
+      <span class="pp ${p < 20 ? 'low' : ''}">${p}%</span>
+    </div>`);
+  }
+  $('#hours').innerHTML = out.join('');
+  $('#hours').scrollLeft = 0;
+  $('#hoursCard').hidden = false;
+}
+
+function renderDays(d, tz, off){
+  const dl = d.daily, n = Math.min(14, dl.time.length);
+  const lo = Math.min(...dl.temperature_2m_min.slice(0, n)), hi = Math.max(...dl.temperature_2m_max.slice(0, n));
+  const span = Math.max(1, hi - lo);
+  const rows = [];
+  for (let i = 0; i < n; i++){
+    if (i === 0) rows.push('<li class="week-label">This week</li>');
+    if (i === 7) rows.push('<li class="week-label">Week after</li>');
+    const tmin = dl.temperature_2m_min[i], tmax = dl.temperature_2m_max[i];
+    const pop = dl.precipitation_probability_max[i] ?? 0, mm = dl.precipitation_sum[i] ?? 0;
+    const left = (tmin - lo) / span * 100, right = 100 - (tmax - lo) / span * 100;
+    const name = i === 0 ? 'Today' : i === 1 ? 'Tmrw' : dayFmt(dl.time[i], { weekday:'short' });
+    const date = dayFmt(dl.time[i], { month:'short', day:'numeric' });
+    const sr = tShort(toEpoch(dl.sunrise[i], off), tz), ss = tShort(toEpoch(dl.sunset[i], off), tz);
+    const [label, kind] = wmo(dl.weather_code[i]);
+    rows.push(`<li><details class="day">
+      <summary aria-label="${esc(dayFmt(dl.time[i], { weekday:'long', month:'long', day:'numeric' }))}: ${esc(label)}, ${rnd(tmax)} to ${rnd(tmin)} degrees Celsius, ${pop}% chance of rain">
+        <span class="dname">${name}<span>${date}</span></span>
+        ${icon(kind, 1)}
+        <span class="dpop ${pop < 20 ? 'low' : ''}">${pop}%<span>${mm >= 0.1 ? mm.toFixed(1) + ' mm' : '–'}</span></span>
+        <span class="dt lo num">${rnd(tmin)}°<span>${rnd(toF(tmin))}°F</span></span>
+        <span class="range"><i style="left:${left}%;right:${right}%;background:linear-gradient(90deg, ${tempColor(tmin)}, ${tempColor(tmax)})"></i></span>
+        <span class="dt num">${rnd(tmax)}°<span>${rnd(toF(tmax))}°F</span></span>
+      </summary>
+      <div class="day-detail">
+        <div><b>Sky</b><span>${esc(label)}</span></div>
+        <div><b>Rain</b><span>${mm.toFixed(1)} mm · ${(mm / 25.4).toFixed(2)} in</span></div>
+        <div><b>Wind max</b><span>${rnd(dl.wind_speed_10m_max[i])} km/h · ${rnd(kmhToMph(dl.wind_speed_10m_max[i]))} mph</span></div>
+        <div><b>UV max</b><span>${dl.uv_index_max[i] != null ? dl.uv_index_max[i].toFixed(0) : '–'}</span></div>
+        <div><b>Sunrise</b><span>${sr}</span></div>
+        <div><b>Sunset</b><span>${ss}</span></div>
+      </div>
+    </details></li>`);
+  }
+  $('#days').innerHTML = rows.join('');
+  $('#daysCard').hidden = false;
+}
+
+/* ---------- radar ---------- */
+const R = { map:null, base:null, marker:null, frames:[], layers:[], idx:0, timer:null, mode:'loop', us:null, loadedAt:0 };
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const darkMQ = matchMedia('(prefers-color-scheme: dark)');
+const devTime = ms => new Intl.DateTimeFormat('en-US', { hour:'numeric', minute:'2-digit' }).format(new Date(ms));
+
+function initMap(place){
+  if (!window.L){ $('#map').innerHTML = '<p class="map-msg">The radar map didn’t load. Check your connection, then tap refresh.</p>'; $('#radarBar').hidden = true; return; }
+  const touch = matchMedia('(pointer: coarse)').matches;
+  R.map = L.map('map', { zoomControl: !touch, dragging: !touch, scrollWheelZoom:false, touchZoom:true, maxZoom:10, minZoom:3, attributionControl:true })
+    .setView([place.lat, place.lon], 7);
+  R.map.attributionControl.setPrefix(false);
+  setBase();
+  if (darkMQ.addEventListener) darkMQ.addEventListener('change', setBase);
+  const accent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#E0532A';
+  R.marker = L.circleMarker([place.lat, place.lon], { radius:6, color:'#ffffff', weight:2, fillColor:accent, fillOpacity:1 }).addTo(R.map);
+  loadRadar();
+}
+function setBase(){
+  if (!R.map) return;
+  if (R.base) R.map.removeLayer(R.base);
+  R.base = L.tileLayer(`https://{s}.basemaps.cartocdn.com/${darkMQ.matches ? 'dark_all' : 'light_all'}/{z}/{x}/{y}{r}.png`,
+    { subdomains:'abcd', maxZoom:19, attribution:'© OpenStreetMap © CARTO' }).addTo(R.map);
+  R.base.bringToBack();
+}
+function moveMap(place){
+  if (!R.map){ initMap(place); return; }
+  R.map.setView([place.lat, place.lon], R.map.getZoom(), { animate:false });
+  R.marker && R.marker.setLatLng([place.lat, place.lon]);
+}
+async function loadRadar(){
+  if (!R.map) return;
+  try{
+    const res = await fetch('https://api.rainviewer.com/public/weather-maps.json');
+    const j = await res.json();
+    const frames = (j.radar && j.radar.past || []).slice(-6);
+    if (!frames.length) throw new Error('no frames');
+    R.layers.forEach(l => R.map.removeLayer(l));
+    R.frames = frames;
+    R.layers = frames.map(f => L.tileLayer(`${j.host}${f.path}/256/{z}/{x}/{y}/2/1_1.png`,
+      { opacity:0, maxNativeZoom:7, maxZoom:10, zIndex:5, attribution:'Radar © RainViewer' }));
+    if (R.mode === 'loop') R.layers.forEach(l => l.addTo(R.map));
+    $('#frameRange').max = String(frames.length - 1);
+    R.loadedAt = Date.now();
+    showFrame(frames.length - 1);
+    if (R.mode === 'loop' && !reduceMotion) play(); else setPlayIcon(false);
+  }catch(e){
+    setMode('us');
+    $('#radarNote').textContent = 'The animated radar didn’t load, so this shows live US radar. Refresh to try again.';
+  }
+}
+function showFrame(i){
+  R.idx = i;
+  R.layers.forEach((l, k) => l.setOpacity(k === i ? 0.8 : 0));
+  $('#frameRange').value = String(i);
+  const f = R.frames[i];
+  if (f) $('#frameTime').textContent = (i === R.frames.length - 1 ? 'Latest · ' : '') + devTime(f.time * 1000);
+}
+function setPlayIcon(playing){
+  $('#playIcon').innerHTML = playing ? '<rect x="2" y="1" width="3.5" height="12" rx="1"/><rect x="8.5" y="1" width="3.5" height="12" rx="1"/>' : '<path d="M3 1.5v11l9.5-5.5z"/>';
+  $('#playBtn').setAttribute('aria-label', playing ? 'Pause radar' : 'Play radar');
+}
+function stop(){ clearTimeout(R.timer); R.timer = null; setPlayIcon(false); }
+function play(){
+  if (!R.layers.length) return;
+  clearTimeout(R.timer); setPlayIcon(true);
+  const step = () => {
+    const last = R.idx === R.layers.length - 1;
+    R.timer = setTimeout(() => { showFrame(last ? 0 : R.idx + 1); step(); }, last ? 1800 : 650);
+  };
+  step();
+}
+function setMode(mode){
+  R.mode = mode;
+  $('#modeLoop').setAttribute('aria-pressed', String(mode === 'loop'));
+  $('#modeUS').setAttribute('aria-pressed', String(mode === 'us'));
+  if (!R.map) return;
+  if (mode === 'us'){
+    stop(); R.layers.forEach(l => R.map.removeLayer(l));
+    if (!R.us) R.us = L.tileLayer('https://mesonet.agron.iastate.edu/cache/tile.py/1.0.0/nexrad-n0q-900913/{z}/{x}/{y}.png?_=' + Math.floor(Date.now() / 300000),
+      { opacity:0.7, zIndex:5, maxZoom:10, attribution:'NEXRAD via IEM' });
+    R.us.addTo(R.map);
+    $('#radarBar').hidden = true;
+    $('#radarNote').textContent = 'Live US radar (NEXRAD), updated every 5 minutes. Higher detail, US only.';
+  } else {
+    if (R.us) R.map.removeLayer(R.us);
+    R.layers.forEach(l => l.addTo(R.map));
+    $('#radarBar').hidden = false;
+    $('#radarNote').textContent = 'Last hour of radar. Pinch to zoom. The dot marks the selected place.';
+    if (R.layers.length){ showFrame(R.layers.length - 1); if (!reduceMotion) play(); }
+  }
+}
+function refreshUS(){
+  if (!R.us) return;
+  R.us.setUrl('https://mesonet.agron.iastate.edu/cache/tile.py/1.0.0/nexrad-n0q-900913/{z}/{x}/{y}.png?_=' + Math.floor(Date.now() / 300000));
+}
+
+$('#playBtn').addEventListener('click', () => R.timer ? stop() : play());
+$('#frameRange').addEventListener('input', e => { stop(); showFrame(+e.target.value); });
+$('#modeLoop').addEventListener('click', () => setMode('loop'));
+$('#modeUS').addEventListener('click', () => setMode('us'));
+
+/* ---------- places sheet ---------- */
+const sheet = $('#sheet');
+function openSheet(){ renderSaved(); $('#results').innerHTML = ''; $('#q').value = ''; if (sheet.showModal) sheet.showModal(); else sheet.setAttribute('open', ''); setTimeout(() => $('#q').focus(), 50); }
+function closeSheet(){ if (sheet.close) sheet.close(); else sheet.removeAttribute('open'); }
+$('#sheetClose').addEventListener('click', closeSheet);
+sheet.addEventListener('click', e => { if (e.target === sheet) closeSheet(); });
+
+function renderSaved(){
+  const ul = $('#saved'); ul.innerHTML = '';
+  places.forEach((p, i) => {
+    const li = document.createElement('li');
+    li.innerHTML = '<span class="nm"><span class="n"></span><span class="sub"></span></span><span class="btns"></span>';
+    li.querySelector('.n').textContent = p.name + (i === 0 ? ' (first)' : '');
+    li.querySelector('.sub').textContent = p.region || '';
+    const btns = li.querySelector('.btns');
+    if (i > 0){
+      const up = document.createElement('button'); up.type = 'button'; up.textContent = 'Move up';
+      up.addEventListener('click', () => { [places[i-1], places[i]] = [places[i], places[i-1]]; savePlaces(); renderSaved(); });
+      btns.append(up, ' ');
+    }
+    const rm = document.createElement('button'); rm.type = 'button'; rm.textContent = 'Remove';
+    rm.disabled = places.length === 1;
+    rm.addEventListener('click', () => {
+      places.splice(i, 1); savePlaces(); renderSaved();
+      if (selected === p.id) select(places[0].id);
+    });
+    btns.append(rm);
+    ul.append(li);
+  });
+}
+function savePlaces(){ store.set('places', places); renderPlaces(); }
+
+let qTimer;
+$('#q').addEventListener('input', e => {
+  clearTimeout(qTimer);
+  const v = e.target.value.trim();
+  if (v.length < 2){ $('#results').innerHTML = ''; return; }
+  qTimer = setTimeout(() => searchPlaces(v), 300);
+});
+async function searchPlaces(v){
+  const ul = $('#results'); ul.innerHTML = '<li class="hint">Searching…</li>';
+  try{
+    const r = await fetch(GEO + '?' + new URLSearchParams({ name:v, count:'7', language:'en', format:'json' }));
+    const j = await r.json();
+    if ($('#q').value.trim() !== v) return;
+    ul.innerHTML = '';
+    if (!j.results || !j.results.length){ ul.innerHTML = '<li class="hint">No places match that name. Try a nearby city.</li>'; return; }
+    j.results.forEach(g => {
+      const region = [g.admin1, g.country_code].filter(Boolean).join(', ');
+      const li = document.createElement('li');
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'result';
+      b.innerHTML = '<strong></strong><span></span>';
+      b.querySelector('strong').textContent = g.name; b.querySelector('span').textContent = region;
+      b.addEventListener('click', () => addPlace({ id:'p' + g.id, name:g.name, region, lat:g.latitude, lon:g.longitude }));
+      li.append(b); ul.append(li);
+    });
+  }catch(e){ ul.innerHTML = '<li class="hint">Search isn’t reachable right now. Check your connection.</li>'; }
+}
+function addPlace(p){
+  if (!places.some(x => x.id === p.id)) places.push(p);
+  savePlaces(); closeSheet(); select(p.id);
+}
+
+/* ---------- refresh + install tip ---------- */
+function refresh(){
+  select(selected || places[0].id);
+  if (Date.now() - R.loadedAt > 5 * 60e3) loadRadar();
+  refreshUS();
+}
+$('#refreshBtn').addEventListener('click', refresh);
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && Date.now() - lastLoad > 10 * 60e3) refresh();
+});
+setInterval(() => { if (document.visibilityState === 'visible') refresh(); }, 20 * 60e3);
+
+const standalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+if (!standalone && !store.get('tipHidden', false)) $('#installTip').hidden = false;
+$('#tipClose').addEventListener('click', () => { $('#installTip').hidden = true; store.set('tipHidden', true); });
+
+if ('serviceWorker' in navigator && location.protocol === 'https:'){
+  navigator.serviceWorker.register('sw.js').catch(() => {});
+}
+
+/* ---------- start ---------- */
+(async () => {
+  let start = selected;
+  if (!start){
+    start = places[0].id;
+    try{
+      if (navigator.permissions){
+        const st = await navigator.permissions.query({ name:'geolocation' });
+        if (st.state === 'granted') start = 'here';
+      }
+    }catch(e){}
+  }
+  select(start);
+})();
+})();
+</script>
+</body>
+</html>
