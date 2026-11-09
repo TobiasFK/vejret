@@ -67,6 +67,7 @@ button{font:inherit;color:inherit}
 .chip svg{width:14px;height:14px}
 .chip .pin{fill:var(--accent)}
 .chip[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:var(--bg)}
+.chip .ct{font:400 12px var(--f-data);opacity:.7}
 .chip-add{border-style:dashed;color:var(--muted)}
 .chip-add svg{stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round}
 
@@ -112,9 +113,48 @@ button{font:inherit;color:inherit}
 .next-rain{margin:12px 0 0;padding-top:12px;border-top:1px solid var(--line);font-size:15px;color:var(--muted)}
 .next-rain strong{color:var(--ink);font-weight:600}
 
+/* Wind */
+.wind-top{display:grid;grid-template-columns:112px 1fr;gap:16px;align-items:center}
+.dial{width:112px;height:112px;display:block}
+.dial .ring{fill:none;stroke:var(--line);stroke-width:1.5}
+.dial .tk{stroke:var(--muted);stroke-width:1.2;stroke-linecap:round}
+.dial text{font:500 10px var(--f-data);fill:var(--muted);text-anchor:middle;dominant-baseline:central}
+.dial .shaft{stroke:var(--ink);stroke-width:3;stroke-linecap:round}
+.dial .head{fill:var(--ink)}
+.dial .tail{fill:var(--accent)}
+.dial .calm{font:500 12px var(--f-display);fill:var(--muted)}
+.w-speed{margin:0;font-weight:700;font-size:44px;line-height:1;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+.w-speed small{font-size:16px;font-weight:500;color:var(--muted);letter-spacing:0}
+.w-units{margin:4px 0 0;font:400 12px var(--f-data);color:var(--muted)}
+.w-label{margin:8px 0 0;font-weight:600;font-size:18px;line-height:1.2}
+.w-label span{font:400 12px var(--f-data);color:var(--muted);font-weight:400}
+.w-meta{margin:14px 0 0;font-size:16px}
+.w-lines{display:grid;gap:10px;margin:14px 0 0;padding-top:12px;border-top:1px solid var(--line)}
+.w-lines div{display:grid;grid-template-columns:6.4rem 1fr;gap:10px;align-items:baseline}
+.w-lines dt{font:500 11px var(--f-data);text-transform:uppercase;letter-spacing:.09em;color:var(--muted)}
+.w-lines dd{margin:0;font-size:15px;min-width:0}
+.bft{display:grid;grid-template-columns:repeat(13,1fr);gap:3px;margin-top:16px}
+.bft i{height:8px;border-radius:2px;background:var(--surface-2)}
+.bft i.f{background:color-mix(in srgb, var(--rain) 55%, var(--surface-2))}
+.bft i.on{background:var(--ink)}
+.bft i.g{background:transparent;box-shadow:inset 0 0 0 1.5px var(--rain)}
+.bft-axis{display:flex;justify-content:space-between;gap:8px;margin-top:6px;font:400 11px var(--f-data);color:var(--muted)}
+
 /* Hours */
-.hours{display:flex;gap:2px;overflow-x:auto;margin:0 -16px;padding:0 16px 4px;scroll-snap-type:x proximity;scrollbar-width:thin}
-.hour{flex:0 0 58px;display:grid;justify-items:center;gap:3px;text-align:center;scroll-snap-align:start;padding:4px 0}
+.hours{display:flex;gap:0;overflow-x:auto;margin:0 -16px;padding:0 16px 4px;scroll-snap-type:x proximity;scrollbar-width:thin}
+.hour{flex:0 0 58px;display:grid;justify-items:center;align-content:start;gap:3px;text-align:center;scroll-snap-align:start;padding:6px 0}
+.hour.night{background:var(--surface-2)}
+.hour.sun-ev{flex-basis:66px;border-radius:10px;background:color-mix(in srgb, var(--sun) 18%, var(--surface));margin:0 3px}
+.hour.sun-ev time{color:var(--ink);font-weight:500}
+.hour.sun-ev .se-l{font:600 12px var(--f-display);color:var(--ink)}
+.se-ic .hz{stroke:var(--muted);stroke-width:1.6;stroke-linecap:round;fill:none}
+.se-ic .arc{fill:var(--sun)}
+.se-ic .ar{stroke:var(--sun);stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;fill:none}
+.hw{display:inline-flex;align-items:center;gap:2px;font:400 11px var(--f-data);color:var(--muted);margin-top:2px}
+.warr,.hour .warr{width:11px;height:11px;fill:var(--ink);flex:0 0 11px}
+.warr.strong{fill:var(--accent)}
+.hours-legend{display:flex;align-items:center;gap:8px;margin:10px 0 0;font:400 11px var(--f-data);color:var(--muted)}
+.hours-legend i{width:14px;height:10px;border-radius:2px;background:var(--surface-2);box-shadow:inset 0 0 0 1px var(--line)}
 .hour time{font:500 12px var(--f-data);color:var(--muted)}
 .hour svg{width:30px;height:30px}
 .hour .ht{font-weight:600;font-size:17px;line-height:1}
@@ -150,6 +190,8 @@ button{font:inherit;color:inherit}
 .day summary::-webkit-details-marker{display:none}
 .dname{font-weight:600;font-size:15px;line-height:1.15}
 .dname span{display:block;font:400 11px var(--f-data);color:var(--muted)}
+.dname .windy{display:inline;color:var(--accent);font-weight:500}
+.day-detail .wide{grid-column:1 / -1}
 .day svg{width:28px;height:28px}
 .dpop{font:500 13px var(--f-data);color:var(--rain);line-height:1.15}
 .dpop span{display:block;font-size:10px;color:var(--muted)}
@@ -227,9 +269,15 @@ dialog#sheet::backdrop{background:rgba(5,15,25,.5)}
       <p class="next-rain" id="nextRain"></p>
     </section>
 
+    <section class="card" id="windCard" hidden>
+      <h2>Wind</h2>
+      <div id="wind"></div>
+    </section>
+
     <section class="card" id="hoursCard" hidden>
       <h2>Next 24 hours</h2>
       <div class="hours" id="hours"></div>
+      <p class="hours-legend" id="hoursLegend"></p>
     </section>
 
     <section class="card">
@@ -292,7 +340,7 @@ const store = {
   get(k, d){ try{ const v = localStorage.getItem('vejret.' + k); return v == null ? d : JSON.parse(v); }catch(e){ return d; } },
   set(k, v){ try{ localStorage.setItem('vejret.' + k, JSON.stringify(v)); }catch(e){} }
 };
-const BOSTON = { id:'boston', name:'Boston', region:'Massachusetts, US', lat:42.3601, lon:-71.0589 };
+const BOSTON = { id:'boston', name:'Boston', region:'Massachusetts, US', lat:42.3601, lon:-71.0589, tz:'America/New_York' };
 let places = store.get('places', null);
 if (!Array.isArray(places) || !places.length) places = [BOSTON];
 let selected = store.get('selected', null);
@@ -352,6 +400,61 @@ function icon(kind, day = 1){
 const PIN = '<svg viewBox="0 0 24 24" aria-hidden="true"><path class="pin" d="M12 2a7 7 0 0 0-7 7c0 5.2 7 13 7 13s7-7.8 7-13a7 7 0 0 0-7-7zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5z"/></svg>';
 const PLUS = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>';
 
+/* ---------- wind ---------- */
+// Beaufort force from km/h: upper bounds (exclusive) for forces 0–11
+const BF_MAX = [1, 6, 12, 20, 29, 39, 50, 62, 75, 89, 103, 118];
+const bf = k => { const v = Math.round(k); for (let i = 0; i < BF_MAX.length; i++) if (v < BF_MAX[i]) return i; return 12; };
+// [name, what it looks/feels like, what it means on a bike]
+const WIND = [
+  ['Calm', 'Smoke rises straight up. Candle-on-the-balcony calm.', 'No wind to speak of.'],
+  ['Light air', 'Smoke drifts, but a flag won’t move.', 'You won’t notice it.'],
+  ['Light breeze', 'You feel it on your face and leaves rustle.', 'Barely there.'],
+  ['Gentle breeze', 'Leaves and small twigs keep moving; flags flutter.', 'A light push or drag, nothing more.'],
+  ['Moderate breeze', 'Dust and loose paper fly. Your hair is a lost cause.', 'You’ll feel the headwind. Add a few minutes.'],
+  ['Fresh breeze', 'Small trees sway and the harbor gets whitecaps.', 'Hard work into it, a free ride with it.'],
+  ['Strong breeze', 'Big branches move, wires whistle, umbrellas flip inside out.', 'Tiring, and crosswinds push you around. Hood, not umbrella.'],
+  ['Near gale', 'Whole trees sway. Walking into it takes real effort.', 'Unpleasant and wobbly. Consider the T.'],
+  ['Gale', 'Twigs snap off trees. Walking is a struggle.', 'Not a cycling day.'],
+  ['Strong gale', 'Signs and roof shingles can come loose.', 'Stay off the bike.'],
+  ['Storm', 'Trees come down. Stay indoors if you can.', 'Stay off the bike.'],
+  ['Violent storm', 'Widespread damage. Stay indoors.', 'Stay off the bike.'],
+  ['Hurricane force', 'Hurricane-force wind. Follow local warnings.', 'Stay off the bike.']
+];
+const COMPASS = ['north','north-northeast','northeast','east-northeast','east','east-southeast','southeast','south-southeast','south','south-southwest','southwest','west-southwest','west','west-northwest','northwest','north-northwest'];
+const ABBR = ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];
+const norm = deg => ((deg % 360) + 360) % 360;
+const dirIdx = deg => Math.round(norm(deg) / 22.5) % 16;
+function windOrigin(deg, place){
+  const d = norm(deg);
+  const boston = place && place.lat > 41.3 && place.lat < 43.6 && place.lon > -72.8 && place.lon < -69.6;
+  if (boston){
+    if (d >= 337.5 || d < 22.5) return 'Cold air down from Canada and northern New England.';
+    if (d < 67.5) return 'Off the cold Atlantic: raw and damp. The nor’easter direction.';
+    if (d < 112.5) return 'A sea breeze off the harbor. Cooler and damper near the coast.';
+    if (d < 157.5) return 'Moist ocean air. Often a sign rain is on the way.';
+    if (d < 247.5) return 'Milder, more humid air from the south.';
+    if (d < 292.5) return 'From inland New England. Usually drier air.';
+    return 'Dry air from inland. In winter, the coldest wind Boston gets.';
+  }
+  const north = d >= 292.5 || d < 67.5, south = d >= 112.5 && d < 247.5, nh = !place || place.lat >= 0;
+  if ((north && nh) || (south && !nh)) return 'Wind from the pole side usually brings cooler air.';
+  if ((south && nh) || (north && !nh)) return 'Wind from the equator side usually brings milder air.';
+  return '';
+}
+function dial(deg, calm){
+  let ticks = '';
+  for (let i = 0; i < 16; i++){
+    const a = i * 22.5 * Math.PI / 180, major = i % 4 === 0, r1 = major ? 34 : 37, r2 = 41;
+    ticks += `<line class="tk" x1="${50 + r1 * Math.sin(a)}" y1="${50 - r1 * Math.cos(a)}" x2="${50 + r2 * Math.sin(a)}" y2="${50 - r2 * Math.cos(a)}"/>`;
+  }
+  const letters = '<text x="50" y="1">N</text><text x="99" y="50">E</text><text x="50" y="99">S</text><text x="1" y="50">W</text>';
+  // Arrow points where the wind is blowing to; the orange dot sits on the side it comes from.
+  const arrow = calm ? '<text class="calm" x="50" y="50">calm</text>'
+    : `<g transform="rotate(${norm(deg + 180)} 50 50)"><line class="shaft" x1="50" y1="76" x2="50" y2="30"/><path class="head" d="M50 20l8 14H42z"/><circle class="tail" cx="50" cy="78" r="5"/></g>`;
+  return `<svg class="dial" viewBox="-6 -6 112 112" role="img" aria-label="${calm ? 'Calm' : 'Wind from the ' + COMPASS[dirIdx(deg)]}"><circle class="ring" cx="50" cy="50" r="41"/>${ticks}${letters}${arrow}</svg>`;
+}
+const miniArrow = (deg, strong) => `<svg class="warr${strong ? ' strong' : ''}" viewBox="0 0 12 12" style="transform:rotate(${norm(deg + 180)}deg)" aria-hidden="true"><path d="M6 .5l4 5.5H7.3v5.5H4.7V6H2z"/></svg>`;
+
 function tempColor(c){
   const t = Math.max(-15, Math.min(35, c));
   const stops = [[-15,222,62,62],[0,200,62,58],[10,170,42,50],[18,48,85,55],[26,30,88,55],[35,8,80,52]];
@@ -368,10 +471,10 @@ function tempColor(c){
 async function getForecast(lat, lon){
   const p = new URLSearchParams({
     latitude: lat.toFixed(4), longitude: lon.toFixed(4), timezone: 'auto', forecast_days: '14',
-    current: 'temperature_2m,apparent_temperature,relative_humidity_2m,is_day,precipitation,weather_code,wind_speed_10m,wind_gusts_10m',
+    current: 'temperature_2m,apparent_temperature,relative_humidity_2m,is_day,precipitation,weather_code,wind_speed_10m,wind_direction_10m,wind_gusts_10m',
     minutely_15: 'precipitation', forecast_minutely_15: '13',
-    hourly: 'temperature_2m,precipitation_probability,precipitation,weather_code,is_day', forecast_hours: '48',
-    daily: 'weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max,sunrise,sunset,wind_speed_10m_max,uv_index_max'
+    hourly: 'temperature_2m,precipitation_probability,precipitation,weather_code,is_day,wind_speed_10m,wind_direction_10m,wind_gusts_10m', forecast_hours: '48',
+    daily: 'weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max,sunrise,sunset,wind_speed_10m_max,wind_gusts_10m_max,wind_direction_10m_dominant,uv_index_max'
   });
   const res = await fetch(API + '?' + p);
   if (!res.ok) throw new Error('Forecast service returned ' + res.status);
@@ -394,21 +497,37 @@ async function reverseName(lat, lon){
 /* ---------- places nav ---------- */
 function renderPlaces(){
   const nav = $('#places'); nav.innerHTML = '';
-  const chip = (id, label, pre = '') => {
+  const chip = (id, label, tz, pre = '') => {
     const b = document.createElement('button'); b.type = 'button'; b.className = 'chip';
     b.setAttribute('aria-pressed', String(selected === id));
-    b.innerHTML = pre + '<span></span>'; b.querySelector('span').textContent = label;
+    b.innerHTML = pre + '<span class="cn"></span><span class="ct num"></span>';
+    b.querySelector('.cn').textContent = label;
+    const ct = b.querySelector('.ct'); ct.dataset.tz = tz || ''; ct.textContent = clock(tz);
     b.addEventListener('click', () => { if (selected !== id) select(id); });
     return b;
   };
-  nav.append(chip('here', 'Here', PIN));
-  places.forEach(p => nav.append(chip(p.id, p.name)));
+  nav.append(chip('here', 'Here', '', PIN));
+  places.forEach(p => nav.append(chip(p.id, p.name, p.tz)));
   const add = document.createElement('button'); add.type = 'button'; add.className = 'chip chip-add';
   add.innerHTML = PLUS + '<span>Add</span>'; add.setAttribute('aria-label', 'Add or manage places');
   add.addEventListener('click', openSheet); nav.append(add);
   const on = nav.querySelector('[aria-pressed="true"]');
   if (on) nav.scrollTo({ left: Math.max(0, on.offsetLeft - 24), behavior: 'smooth' });
 }
+
+// Local time for a place; '' or unknown zone falls back to the phone's own clock.
+function clock(tz){
+  const o = { hour:'numeric', minute:'2-digit' };
+  try{ return new Intl.DateTimeFormat('en-US', tz ? { ...o, timeZone: tz } : o).format(new Date()); }
+  catch(e){ return new Intl.DateTimeFormat('en-US', o).format(new Date()); }
+}
+function tickClocks(){ document.querySelectorAll('.chip .ct').forEach(s => { s.textContent = clock(s.dataset.tz); }); }
+function tickClocksFor(place){
+  const i = places.indexOf(place);
+  const ct = document.querySelectorAll('.chip .ct')[i + 1]; // +1 skips the Here chip
+  if (ct){ ct.dataset.tz = place.tz; ct.textContent = clock(place.tz); }
+}
+setInterval(tickClocks, 20000);
 
 /* ---------- main flow ---------- */
 function setBusy(b){ $('#refreshBtn').classList.toggle('spin', b); }
@@ -469,6 +588,7 @@ async function select(id){
     const at = Date.now();
     store.set('fc.' + place.id, { data, at });
     if (place.here) store.set('herePlace', place);
+    else if (data.timezone && place.tz !== data.timezone){ place.tz = data.timezone; store.set('places', places); tickClocksFor(place); }
     render(data, place, at); lastLoad = at;
   }catch(e){
     if (my !== reqId) return;
@@ -482,6 +602,7 @@ function render(d, place, at){
   const tz = d.timezone, off = d.utc_offset_seconds;
   renderNow(d, place, at, tz);
   renderRain(d, tz, off);
+  renderWind(d, tz, off, place);
   renderHours(d, tz, off);
   renderDays(d, tz, off);
   $('#todayDate').textContent = fmtIn(Date.now(), tz, { weekday:'short', day:'numeric', month:'short' });
@@ -495,6 +616,8 @@ function renderNow(d, place, at, tz){
   const rainMm = dl.precipitation_sum[0] ?? 0, pop = dl.precipitation_probability_max[0];
   const off = d.utc_offset_seconds;
   const sr = tShort(toEpoch(dl.sunrise[0], off), tz), ss = tShort(toEpoch(dl.sunset[0], off), tz);
+  const dayMin = Math.round((toEpoch(dl.sunset[0], off) - toEpoch(dl.sunrise[0], off)) / 60000);
+  const ws = c.wind_speed_10m, wb = bf(ws), calm = ws < 2;
   $('#now').innerHTML = `
     <h1 class="place-name">${esc(place.name)}</h1>
     <p class="place-meta" data-updated="${esc(updated)}">${esc(meta)}</p>
@@ -506,8 +629,8 @@ function renderNow(d, place, at, tz){
     <dl class="stats">
       <div><dt>High / low</dt><dd class="num">${rnd(hi)}° / ${rnd(lo)}°<span class="f">${rnd(toF(hi))}° / ${rnd(toF(lo))}°F</span></dd></div>
       <div><dt>Rain today</dt><dd class="num">${pop ?? '–'}% · ${rainMm.toFixed(1)} mm<span class="f">${(rainMm / 25.4).toFixed(2)} in</span></dd></div>
-      <div><dt>Wind</dt><dd class="num">${rnd(c.wind_speed_10m)} km/h<span class="f">${rnd(kmhToMph(c.wind_speed_10m))} mph · gusts ${rnd(c.wind_gusts_10m)} km/h</span></dd></div>
-      <div><dt>Sunrise / sunset</dt><dd class="num">${sr}<span class="f">sets ${ss} · humidity ${rnd(c.relative_humidity_2m)}%</span></dd></div>
+      <div><dt>Wind</dt><dd>${WIND[wb][0]}<span class="f">${rnd(ws)} km/h${calm ? '' : ' from ' + ABBR[dirIdx(c.wind_direction_10m ?? 0)]} · gusts ${rnd(c.wind_gusts_10m)}</span></dd></div>
+      <div><dt>Daylight</dt><dd class="num">${Math.floor(dayMin / 60)} h ${dayMin % 60} min<span class="f">${sr} – ${ss}</span></dd></div>
     </dl>`;
 }
 
@@ -562,22 +685,88 @@ function renderRain(d, tz, off){
   $('#rainCard').hidden = false;
 }
 
+function renderWind(d, tz, off, place){
+  const c = d.current, sp = c.wind_speed_10m ?? 0, g = Math.max(sp, c.wind_gusts_10m ?? sp), dir = c.wind_direction_10m ?? 0;
+  const b = bf(sp), gb = bf(g), calm = sp < 2, i = dirIdx(dir);
+  const [name, feel, bike] = WIND[b];
+  const origin = windOrigin(dir, place);
+  const from = calm ? 'No steady direction while it’s this calm.' : `The ${COMPASS[i]} (${ABBR[i]}).${origin ? ' ' + origin : ''}`;
+  const gust = (g >= 30 && g - sp >= 12)
+    ? `Bursts up to ${rnd(g)} km/h (${rnd(kmhToMph(g))} mph), ${WIND[gb][0].toLowerCase()} strength.`
+    : `Up to ${rnd(g)} km/h. Steady, no big bursts.`;
+  // Strongest point in the next 24 hours
+  const h = d.hourly, now = Date.now(); let peak = null;
+  if (h && h.wind_speed_10m){
+    for (let k = 0; k < h.time.length; k++){
+      const ep = toEpoch(h.time[k], off);
+      if (ep + 3600e3 <= now || ep > now + 24 * 3600e3) continue;
+      if (!peak || h.wind_speed_10m[k] > peak.s) peak = { ep, s: h.wind_speed_10m[k], g: h.wind_gusts_10m?.[k] ?? h.wind_speed_10m[k], d: h.wind_direction_10m?.[k] ?? dir };
+    }
+  }
+  const peakTxt = peak
+    ? (peak.s <= sp + 3 ? 'About as strong as it gets today: easing or steady from here.'
+       : `Builds to ${rnd(peak.s)} km/h around ${hShort(peak.ep, tz)} (gusts ${rnd(peak.g)}). ${WIND[bf(peak.s)][0]}.`)
+    : '';
+  const seg = Array.from({ length: 13 }, (_, k) => `<i class="${k === b ? 'on' : k < b ? 'f' : (k <= gb ? 'g' : '')}"></i>`).join('');
+  $('#wind').innerHTML = `
+    <div class="wind-top">
+      ${dial(dir, calm)}
+      <div>
+        <p class="w-speed">${rnd(sp)}<small> km/h</small></p>
+        <p class="w-units">${(sp / 3.6).toFixed(0)} m/s · ${rnd(kmhToMph(sp))} mph</p>
+        <p class="w-label">${name} <span>· force ${b} of 12</span></p>
+      </div>
+    </div>
+    <p class="w-meta">${esc(feel)}</p>
+    <dl class="w-lines">
+      <div><dt>Coming from</dt><dd>${esc(from)}</dd></div>
+      <div><dt>Gusts</dt><dd>${esc(gust)}</dd></div>
+      <div><dt>On the bike</dt><dd>${esc(bike)}</dd></div>
+      ${peakTxt ? `<div><dt>Next 24 h</dt><dd>${esc(peakTxt)}</dd></div>` : ''}
+    </dl>
+    <div class="bft" aria-hidden="true">${seg}</div>
+    <div class="bft-axis"><span>0 Calm</span><span>${gb > b ? 'Outline: gusts' : 'Beaufort scale'}</span><span>12 Hurricane</span></div>`;
+  $('#windCard').hidden = false;
+}
+
+function sunIcon(kind){
+  const arrow = kind === 'rise' ? '<path class="ar" d="M12 2.5v5M9.5 5l2.5-2.5L14.5 5"/>' : '<path class="ar" d="M12 2.5v5M9.5 5l2.5 2.5L14.5 5"/>';
+  return `<svg class="se-ic" viewBox="0 0 24 24" width="30" height="30" aria-hidden="true">${arrow}<path class="arc" d="M5.5 18a6.5 6.5 0 0 1 13 0z"/><path class="hz" d="M2.5 18h19M6 21.5h12"/></svg>`;
+}
+
 function renderHours(d, tz, off){
-  const h = d.hourly, now = Date.now(), out = [];
-  for (let i = 0; i < h.time.length && out.length < 24; i++){
+  const h = d.hourly, dl = d.daily, now = Date.now(), out = [];
+  const events = [];
+  for (let k = 0; k < Math.min(3, dl.time.length); k++){
+    events.push({ ep: toEpoch(dl.sunrise[k], off), kind:'rise' }, { ep: toEpoch(dl.sunset[k], off), kind:'set' });
+  }
+  let n = 0;
+  for (let i = 0; i < h.time.length && n < 24; i++){
     const ep = toEpoch(h.time[i], off);
     if (ep + 3600e3 <= now) continue;
     const t = h.temperature_2m[i], p = h.precipitation_probability[i] ?? 0;
-    out.push(`<div class="hour">
-      <time>${out.length === 0 ? 'Now' : esc(hShort(ep, tz))}</time>
+    const ws = h.wind_speed_10m ? h.wind_speed_10m[i] : null, wd = h.wind_direction_10m ? h.wind_direction_10m[i] : 0;
+    out.push(`<div class="hour${h.is_day[i] ? '' : ' night'}">
+      <time>${n === 0 ? 'Now' : esc(hShort(ep, tz))}</time>
       ${icon(wmo(h.weather_code[i])[1], h.is_day[i])}
       <span class="ht num">${rnd(t)}°</span><span class="hf">${rnd(toF(t))}°F</span>
       <span class="pop" aria-hidden="true"><i style="width:${p}%"></i></span>
       <span class="pp ${p < 20 ? 'low' : ''}">${p}%</span>
+      ${ws != null ? `<span class="hw" title="Wind ${rnd(ws)} km/h from ${ABBR[dirIdx(wd)]}">${ws < 2 ? '' : miniArrow(wd, bf(ws) >= 6)}${rnd(ws)}</span>` : ''}
     </div>`);
+    n++;
+    events.filter(e => e.ep > now && e.ep >= ep && e.ep < ep + 3600e3).forEach(e => {
+      out.push(`<div class="hour sun-ev">
+        <time>${esc(tShort(e.ep, tz))}</time>
+        ${sunIcon(e.kind)}
+        <span class="se-l">${e.kind === 'rise' ? 'Sunrise' : 'Sunset'}</span>
+      </div>`);
+    });
   }
   $('#hours').innerHTML = out.join('');
   $('#hours').scrollLeft = 0;
+  const dayMin = Math.round((events[1].ep - events[0].ep) / 60000);
+  $('#hoursLegend').innerHTML = `<i></i>After dark · Daylight today ${Math.floor(dayMin / 60)} h ${dayMin % 60} min · Wind in km/h, arrow shows where it blows`;
   $('#hoursCard').hidden = false;
 }
 
@@ -596,9 +785,12 @@ function renderDays(d, tz, off){
     const date = dayFmt(dl.time[i], { month:'short', day:'numeric' });
     const sr = tShort(toEpoch(dl.sunrise[i], off), tz), ss = tShort(toEpoch(dl.sunset[i], off), tz);
     const [label, kind] = wmo(dl.weather_code[i]);
+    const wmax = dl.wind_speed_10m_max[i] ?? 0, gmax = dl.wind_gusts_10m_max?.[i] ?? wmax, wdir = dl.wind_direction_10m_dominant?.[i] ?? 0;
+    const windy = bf(wmax) >= 6 || bf(gmax) >= 8;
+    const dayLen = Math.round((toEpoch(dl.sunset[i], off) - toEpoch(dl.sunrise[i], off)) / 60000);
     rows.push(`<li><details class="day">
-      <summary aria-label="${esc(dayFmt(dl.time[i], { weekday:'long', month:'long', day:'numeric' }))}: ${esc(label)}, ${rnd(tmax)} to ${rnd(tmin)} degrees Celsius, ${pop}% chance of rain">
-        <span class="dname">${name}<span>${date}</span></span>
+      <summary aria-label="${esc(dayFmt(dl.time[i], { weekday:'long', month:'long', day:'numeric' }))}: ${esc(label)}, ${rnd(tmax)} to ${rnd(tmin)} degrees Celsius, ${pop}% chance of rain${windy ? ', windy' : ''}">
+        <span class="dname">${name}<span>${date}${windy ? ' · <span class="windy">windy</span>' : ''}</span></span>
         ${icon(kind, 1)}
         <span class="dpop ${pop < 20 ? 'low' : ''}">${pop}%<span>${mm >= 0.1 ? mm.toFixed(1) + ' mm' : '–'}</span></span>
         <span class="dt lo num">${rnd(tmin)}°<span>${rnd(toF(tmin))}°F</span></span>
@@ -608,8 +800,9 @@ function renderDays(d, tz, off){
       <div class="day-detail">
         <div><b>Sky</b><span>${esc(label)}</span></div>
         <div><b>Rain</b><span>${mm.toFixed(1)} mm · ${(mm / 25.4).toFixed(2)} in</span></div>
-        <div><b>Wind max</b><span>${rnd(dl.wind_speed_10m_max[i])} km/h · ${rnd(kmhToMph(dl.wind_speed_10m_max[i]))} mph</span></div>
+        <div class="wide"><b>Wind</b><span>Up to ${rnd(wmax)} km/h (${rnd(kmhToMph(wmax))} mph) from the ${COMPASS[dirIdx(wdir)]}, gusts ${rnd(gmax)}. ${WIND[bf(wmax)][0]}: ${esc(WIND[bf(wmax)][1])}</span></div>
         <div><b>UV max</b><span>${dl.uv_index_max[i] != null ? dl.uv_index_max[i].toFixed(0) : '–'}</span></div>
+        <div><b>Daylight</b><span>${Math.floor(dayLen / 60)} h ${dayLen % 60} min</span></div>
         <div><b>Sunrise</b><span>${sr}</span></div>
         <div><b>Sunset</b><span>${ss}</span></div>
       </div>
@@ -774,7 +967,7 @@ async function searchPlaces(v){
       const b = document.createElement('button'); b.type = 'button'; b.className = 'result';
       b.innerHTML = '<strong></strong><span></span>';
       b.querySelector('strong').textContent = g.name; b.querySelector('span').textContent = region;
-      b.addEventListener('click', () => addPlace({ id:'p' + g.id, name:g.name, region, lat:g.latitude, lon:g.longitude }));
+      b.addEventListener('click', () => addPlace({ id:'p' + g.id, name:g.name, region, lat:g.latitude, lon:g.longitude, tz:g.timezone || '' }));
       li.append(b); ul.append(li);
     });
   }catch(e){ ul.innerHTML = '<li class="hint">Search isn’t reachable right now. Check your connection.</li>'; }

@@ -1,6 +1,6 @@
 // Vejret service worker: keeps the app shell available offline.
 // Weather data always comes from the network; the page keeps its own last-forecast copy.
-const CACHE = 'vejret-v1';
+const CACHE = 'vejret-v2';
 const SHELL = ['./', './index.html', './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png', './icons/apple-touch-icon.png'];
 
 self.addEventListener('install', e => {
