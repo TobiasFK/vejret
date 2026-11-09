@@ -261,18 +261,18 @@ dialog#sheet::backdrop{background:rgba(5,15,25,.5)}
   <main>
     <section class="now" id="now" aria-live="polite"><p class="skeleton">Loading forecast…</p></section>
 
+    <section class="card" id="hoursCard" hidden>
+      <h2>Next 24 hours</h2>
+      <div class="hours" id="hours"></div>
+      <p class="hours-legend" id="hoursLegend"></p>
+    </section>
+
     <section class="card" id="rainCard" hidden>
       <h2>Rain · next 3 hours</h2>
       <p class="rain-lead" id="rainLead"></p>
       <div class="nowcast" id="nowcast" aria-hidden="true"></div>
       <div class="nowcast-axis" id="nowcastAxis" aria-hidden="true"></div>
       <p class="next-rain" id="nextRain"></p>
-    </section>
-
-    <section class="card" id="hoursCard" hidden>
-      <h2>Next 24 hours</h2>
-      <div class="hours" id="hours"></div>
-      <p class="hours-legend" id="hoursLegend"></p>
     </section>
 
     <section class="card">
